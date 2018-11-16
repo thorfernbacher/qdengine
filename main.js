@@ -35,20 +35,11 @@ window.onload = main;
  // Vertex shader program
 
  const vsSource = `
- attribute vec2 aVertexPosition;
-
- uniform vec2 uScalingFactor;
- uniform vec2 uRotationVector;
+ attribute vec3 aVertexPosition;
 
  void main() {
-	 vec2 rotatedPosition = vec2(
-		 aVertexPosition.x * uRotationVector.y +
-					 aVertexPosition.y * uRotationVector.x,
-		 aVertexPosition.y * uRotationVector.y -
-					 aVertexPosition.x * uRotationVector.x
-	 );
-
-	 gl_Position = vec4(rotatedPosition * uScalingFactor, 0.0, 1.0);
+	 
+	 gl_Position = vec4(aVertexPosition, 1.0);
  }
 `;
 
@@ -93,15 +84,8 @@ function main() {
   currentRotation = [0, 1];
   currentScale = [1.0, aspectRatio];
 
-  var positions = [
-    0, 0
-  ];
-  let center = [0,0]; 
-  let r = 0.5;
-  for (let i = 0; i <= 200; i+=2){
-      positions.push(r*Math.cos(i*2*Math.PI/200)); //x
-      positions.push(r*Math.sin(i*2*Math.PI/200)); //y
-  }
+  var vertex = [];
+
   vertexArray = new Float32Array(positions);
 
   vertexBuffer = gl.createBuffer();
@@ -109,7 +93,7 @@ function main() {
   gl.bufferData(gl.ARRAY_BUFFER, vertexArray, gl.STATIC_DRAW);
 
   vertexNumComponents = 2;
-  vertexCount = 102;// vertexArray.length/vertexNumComponents;
+  vertexCount = 102;  // vertexArray.length/vertexNumComponents;
 
   currentAngle = 0.0;
   rotationRate = 6;
@@ -119,18 +103,10 @@ function main() {
   gl.clearColor(0.8, 0.9, 0.7, 1.0);
   gl.clear(gl.COLOR_BUFFER_BIT);
 
-  let radians = currentAngle * Math.PI / 180.0;
-  currentRotation[0] = Math.sin(radians);
-  currentRotation[1] = Math.cos(radians);
-
   gl.useProgram(shaderProgram);
 
-  uScalingFactor = gl.getUniformLocation(shaderProgram, "uScalingFactor");
   u_color = gl.getUniformLocation(shaderProgram, "u_color");
-  uRotationVector = gl.getUniformLocation(shaderProgram, "uRotationVector");
 
-  gl.uniform2fv(uScalingFactor, currentScale);
-  gl.uniform2fv(uRotationVector, currentRotation);
   gl.uniform4fv(u_color, [0.1, 0.7, 0.2, 1.0]);
 
   gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
@@ -146,37 +122,41 @@ function main() {
 }
 
 function buildShaderProgram(shaderInfo) {
-  let program = gl.createProgram();
-
-  shaderInfo.forEach(function(desc) {
-    let shader = compileShader(desc.shader, desc.type);
-
-    if (shader) {
-      gl.attachShader(program, shader);
-    }
-  });
-
-  gl.linkProgram(program)
-
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    console.log("Error linking shader program:");
-    console.log(gl.getProgramInfoLog(program));
+	let program = gl.createProgram();
+  
+	shaderInfo.forEach(function(desc) {
+	  let shader = compileShader(desc.shader, desc.type);
+  
+	  if (shader) {
+		gl.attachShader(program, shader);
+	  }
+	});
+  
+	gl.linkProgram(program)
+  
+	if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+	  console.log("Error linking shader program:");
+	  console.log(gl.getProgramInfoLog(program));
+	}
+  
+	return program;
   }
-
-  return program;
+  
+function compileShader(s, type) {
+	let shader = gl.createShader(type);
+  
+	gl.shaderSource(shader, s);
+	gl.compileShader(shader);
+  
+	if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+	  console.log(`Error compiling ${type === gl.VERTEX_SHADER ? "vertex" : "fragment"} shader:`);
+	  console.log(gl.getShaderInfoLog(shader));
+	}
+	return shader;
 }
 
-function compileShader(s, type) {
-  let shader = gl.createShader(type);
-
-  gl.shaderSource(shader, s);
-  gl.compileShader(shader);
-
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    console.log(`Error compiling ${type === gl.VERTEX_SHADER ? "vertex" : "fragment"} shader:`);
-    console.log(gl.getShaderInfoLog(shader));
-  }
-  return shader;
+function buildRectangle() {
+  
 }
 /*
 function animateScene() {
