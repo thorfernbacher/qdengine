@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Animated circles</title>
+
+<style>
+	body { margin: 0; }
+	canvas { position: absolute; top: 0; left: 0;  }
+</style>
+
+<script id="shader-vs" type="x-webgl-shader/x-vertex">
+	uniform mat3 uTransformToClipSpace;
+	uniform float uAnimationPosition;
+
+	attribute vec2 aPosition;
+	attribute float aFromRadius, aToRadius;
+	attribute vec3 aFromColor, aToColor;
+	varying vec3 vColor;
+	varying float radius;
+	void main(void) {
+		vec2 p = aPosition;
+		vec2 pos = (uTransformToClipSpace * vec3(aPosition, 1.0)).xy;
+		radius = mix(aFromRadius, aToRadius, uAnimationPosition);
+		vColor = mix(aFromColor, aToColor, uAnimationPosition);
+
+		gl_Position = vec4(pos, 0.0, 1.0);
+		gl_PointSize = radius * 30.0;
+	}
+</script>
+
+<script id="shader-fs" type="x-webgl-shader/x-fragment">
+	varying mediump vec3 vColor;
+	varying mediump float radius;
+	uniform mediump vec2 u_resolution;
+	precision mediump float;
+
+	void main(void) {
+		float r = 0.0, delta = 0.0, alpha = 1.0;
+		vec2 cxy = 2.0 * gl_PointCoord - 1.0;
+		r = dot(cxy, cxy);
+		delta = 0.02;
+		alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
+	
+		gl_FragColor = vec4(0, 0, 0, alpha);
+		
+
+		gl_FragColor = vec4(vColor, alpha);
+	}
+</script>
+
+</head>
+
+<body>
+<canvas id="canvas"></canvas>
+<script>
+// Animation speed
+var MS_PER_DATAPOINT = 2000;
+
+// Number of circles and datapoints
+var num_circles = 50000, num_datapoints = 52;
+
+var w = window.innerWidth, h = window.innerHeight;
+var canvas = document.getElementById("canvas");
+var gl = canvas.getContext("webgl");
+
+var prog, // WebGL program
+    uAnimationPosition; // Locations of uniforms
+
+function initCanvas() {
+	// Set the canvas dimensions and the WebGL viewport
+	canvas.width = w;
+	canvas.height = h;
+	gl.viewport(0, 0, canvas.width, canvas.height);
+}
+
+function glInit() {
+	// Load and compile the shaders
+	var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+	gl.shaderSource(fragmentShader, document.getElementById("shader-fs").textContent);
+	gl.compileShader(fragmentShader);
+	var vertexShader = gl.createShader(gl.VERTEX_SHADER)
+	gl.shaderSource(vertexShader, document.getElementById("shader-vs").textContent);
+	gl.compileShader(vertexShader);
+
+	// Create the WebGL program
+	prog = gl.createProgram();
+	gl.attachShader(prog, vertexShader);
+	gl.attachShader(prog, fragmentShader);
+	gl.linkProgram(prog);
+	gl.useProgram(prog);
+
+	// Global WebGL configuration
+	gl.enable(gl.BLEND);
+	gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+	// Initialise uTransformToClipSpace
+	gl.uniformMatrix3fv(gl.getUniformLocation(prog, "uTransformToClipSpace"), false, [
+		2 / w, 0, 0,
+		0, - 2 / h, 0,
+		-1, 1, 1
+	]);
+
+	// Get the location of the uAnimationPosition uniform
+	uAnimationPosition = gl.getUniformLocation(prog, "uAnimationPosition");
+	gl.uniform2f(gl.getUniformLocation(prog, "u_color"), gl.canvas.width, gl.canvas.height);
+	// Enable the attributes
+	gl.enableVertexAttribArray(gl.getAttribLocation(prog, "aPosition"));
+	gl.enableVertexAttribArray(gl.getAttribLocation(prog, "aFromRadius"));
+	gl.enableVertexAttribArray(gl.getAttribLocation(prog, "aToRadius"));
+	gl.enableVertexAttribArray(gl.getAttribLocation(prog, "aFromColor"));
+	gl.enableVertexAttribArray(gl.getAttribLocation(prog, "aToColor"));
+	gl.enableVertexAttribArray(gl.getUniformLocation(prog, "u_resolution"));
+	return prog;
+}
+
+function drawScene(animation_position) {
+	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+	gl.uniform1f(uAnimationPosition, animation_position);
+	gl.drawArrays(gl.POINTS, 0, num_circles);
+}
+
+var animation_frame, first_timestamp, datapoint = 0;
+function beginAnimation() {
+	animation_frame = requestAnimationFrame(animationFrame);
+}
+
+function animationFrame(timestamp) {
+	if (typeof first_timestamp == "undefined") {
+		first_timestamp = timestamp;
+	}
+	var dt = timestamp - first_timestamp,
+	    p = dt / MS_PER_DATAPOINT;
+
+	if (p >= num_datapoints - 1) return;
+	p = p;
+	if (Math.floor(p) != datapoint) {
+		selectDatapoint(datapoint = Math.floor(p));
+	}
+	drawScene(p % 1.0);
+	animation_frame = requestAnimationFrame(animationFrame);
+}
+
+function generateRandomCircles() {
+	var circles = [];
+	for (var i = 0; i < num_circles; i++) {
+		var circle = {
+			x: Math.random() * w,
+			y: Math.random() * h,
+			radius: [], color: []
+		};
+		for (var j = 0; j < num_datapoints; j++) {
+			circle.radius.push(Math.random() * 5);
+			circle.color.push([ Math.random(), Math.random(), Math.random() ]);
+		}
+		circles.push(circle);
+	}
+	return circles;
+}
+
+function loadCircles(circles) {
+	var floats_per_datapoint = 4,
+	    floats_per_circle = 2 + num_datapoints * floats_per_datapoint;
+
+	// Pack the circle data into an array of floats
+	var data = new Float32Array(num_circles * floats_per_circle);
+	for (var i = 0; i < num_circles; i++) {
+		var circle = circles[i];
+		data[i*2] = circle.x;
+		data[i*2 + 1] = circle.y;
+
+		for (var j = 0; j < num_datapoints; j++) {
+			data[num_circles * (2 + j) + i] = circle.radius[j];
+			data[num_circles * (2 + num_datapoints + 3*j) + i*3] = circle.color[j][0];
+			data[num_circles * (2 + num_datapoints + 3*j) + i*3 + 1] = circle.color[j][1];
+			data[num_circles * (2 + num_datapoints + 3*j) + i*3 + 2] = circle.color[j][2];
+		}
+	}
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+	gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+
+	attrib("aPosition", 2, 0);
+	selectDatapoint(datapoint);
+}
+
+function selectDatapoint(i) {
+	console.log("selectDatapoint", i);
+
+	attrib("aFromRadius", 1, (2 + i) * num_circles);
+	attrib("aToRadius", 1, (2 + i+1) * num_circles);
+	attrib("aFromColor", 3, (2 + num_datapoints + 3*i) * num_circles);
+	attrib("aToColor", 3, (2 + num_datapoints + 3*(i+1)) * num_circles);
+}
+
+function attrib(attrib_name, size, offset) {
+	gl.vertexAttribPointer(gl.getAttribLocation(prog, attrib_name),
+		size, gl.FLOAT, false, size * 4, offset * 4);
+}
+
+
+initCanvas();
+glInit();
+
+loadCircles(generateRandomCircles());
+beginAnimation();
+
+</script>
+</body>
+</html>
