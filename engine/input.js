@@ -1,3 +1,3 @@
 let Input = {
-	
+	keyNames:{}	
 }
