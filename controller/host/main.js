@@ -53,8 +53,7 @@
 	  
 	  // Set up the ICE candidates for the two peers
 	  
-	  localConnection.onicecandidate = e => !e.candidate
-		  || remoteConnection.addIceCandidate(e.candidate)
+	  localConnection.onicecandidate = e => !e.candidate || remoteConnection.addIceCandidate(e.candidate)
 		  .catch(handleAddCandidateError);
   
 	  remoteConnection.onicecandidate = e => !e.candidate
@@ -74,10 +73,31 @@
 	function createLocalConnection() {
 		return localConnection.createOffer()
 		.then(offer => localConnection.setLocalDescription(offer))
-		.then(() => sendLocalDescription(localConnection.localDescription));
+		.then(() => startWS());
 	}
-	function sendAnswer() {
-
+	function sendAnswer(offer) {
+		offer.
+	}
+	let ws;
+	function startWS() {
+		console.log(desc);
+		ws = new WebSocket('ws://localhost:40510');
+    // event emmited when connected
+    ws.onopen = function () {
+        console.log('websocket is connected ...');
+        // sending a send event to websocket server
+				ws.send(JSON.stringify(desc));
+    }
+    // event emmited when receiving message 
+    ws.onmessage = function (ev) {
+				let message = JSON.parse(ev.data);
+				console.log(message);
+				if(message.type === 'id') {
+					console.log(message.id);
+				} else if(message.type === 'offer') {
+					sendAnswer(message);
+				}
+		}
 	}
 	function getRemoteDescription(desc) {
 		localConnection.setRemoteDescription(desc)
@@ -217,27 +237,6 @@
 	
 	window.addEventListener('load', startup, false);
 
-	function sendLocalDescription(desc) {
-		console.log(desc);
-		var ws = new WebSocket('ws://localhost:40510');
-    // event emmited when connected
-    ws.onopen = function () {
-        console.log('websocket is connected ...');
-        // sending a send event to websocket server
-				ws.send(JSON.stringify(desc));
-    }
-    // event emmited when receiving message 
-    ws.onmessage = function (ev) {
-				let message = JSON.parse(ev.data);
-				console.log(message);
-				if(message.type === 'id') {
-					console.log(message.id);
-				} else if(message.type === 'offer') {
-
-				}
-
-		}
-	}
 	function connectController() {
 
 	}
