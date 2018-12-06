@@ -1,21 +1,18 @@
 
 
 	// Define "global" variables
-	
-	var connectButton = null;
-	var disconnectButton = null;
-	var sendButton = null;
-	var messageInputBox = null;
-	var receiveBox = null;
-	
-	var localConnection = null;   // RTCPeerConnection for our "local" connection
-	var remoteConnection = null;  // RTCPeerConnection for the "remote"
-	
-	var sendChannel = null;       // RTCDataChannel for the local (sender)
-	var receiveChannel = null;    // RTCDataChannel for the remote (receiver)
-	
-	// Functions
-	
+	let ws,
+	id,
+	connectButton,
+	disconnectButton,
+	sendButton,
+	messageInputBox,
+	receiveBox,
+	localConnection, // RTCPeerConnection for our "local" connection
+	remoteConnection,
+	sendChannel, // RTCDataChannel for the local (sender)
+	receiveChannel; // RTCDataChannel for the remote (receiver)
+
 	// Set things up, connect event listeners, etc.
 	
 	function startup() {
@@ -32,10 +29,6 @@
 	  sendButton.addEventListener('click', sendMessage, false);
 	}
 	
-	// Connect the two peers. Normally you look for and connect to a remote
-	// machine here, but we're just connecting two local objects, so we can
-	// bypass that step.
-	
 	function connectPeers() {
 	  // Create the local connection and its event listeners
 	  
@@ -44,64 +37,99 @@
 	  // Create the data channel and establish its event listeners
 	  sendChannel = localConnection.createDataChannel("sendChannel");
 	  sendChannel.onopen = handleSendChannelStatusChange;
-	  sendChannel.onclose = handleSendChannelStatusChange;
+		sendChannel.onclose = handleSendChannelStatusChange;
+		sendChannel.ondatachannel = receiveChannelCallback;
 	  
-	  // Create the remote connection and its event listeners
-	  
-	  remoteConnection = new RTCPeerConnection();
-	  remoteConnection.ondatachannel = receiveChannelCallback;
-	  
-	  // Set up the ICE candidates for the two peers
-	  
-	  localConnection.onicecandidate = e => !e.candidate || remoteConnection.addIceCandidate(e.candidate)
-		  .catch(handleAddCandidateError);
-  
-	  remoteConnection.onicecandidate = e => !e.candidate
-		  || localConnection.addIceCandidate(e.candidate)
-		  .catch(handleAddCandidateError);
-	  
-	  // Now create an offer to connect; this starts the process
-	  
-	  createLocalConnection()
+		startWS();
+		/*
 	  .then(() => remoteConnection.setRemoteDescription(localConnection.localDescription))
 	  .then(() => remoteConnection.createAnswer())
 		.then(answer => remoteConnection.setLocalDescription(answer))
 		.then(() => getRemoteDescription(remoteConnection.localDescription));
+		*/
 	 
 	 
 	}
 	function createLocalConnection() {
 		return localConnection.createOffer()
 		.then(offer => localConnection.setLocalDescription(offer))
-		.then(() => startWS());
+		.then(() => startWS(localConnection.localDescription));
 	}
-	function sendAnswer(offer) {
-		offer.
-	}
-	let ws;
-	function startWS() {
+	function startWS(desc) {
 		console.log(desc);
-		ws = new WebSocket('ws://localhost:40510');
+		ws = new WebSocket('ws://localhost/host');
     // event emmited when connected
     ws.onopen = function () {
         console.log('websocket is connected ...');
-        // sending a send event to websocket server
-				ws.send(JSON.stringify(desc));
+				// sending a send event to websocket server
+				console.log(desc);
+				//ws.send(JSON.stringify(desc));
     }
     // event emmited when receiving message 
     ws.onmessage = function (ev) {
 				let message = JSON.parse(ev.data);
 				console.log(message);
 				if(message.type === 'id') {
-					console.log(message.id);
+					id = message.id;
+					console.log(id);
 				} else if(message.type === 'offer') {
+					console.log('recieved message', message);
 					sendAnswer(message);
+					getConnectionDetails(localConnection)
+					//.then((r) => console.log(r));
 				}
 		}
+	}
+	function sendAnswer(m) {
+		localConnection.setRemoteDescription(m)
+		.then(() => localConnection.createAnswer())
+		.then(a => localConnection.setLocalDescription(a))
+		.then(() => {
+			ws.send(JSON.stringify(localConnection.localDescription));
+			
+		});
 	}
 	function getRemoteDescription(desc) {
 		localConnection.setRemoteDescription(desc)
 		//.catch(handleCreateDescriptionError);
+	}
+
+	function getConnectionDetails(peerConnection){
+
+
+		
+		var connectionDetails = {};   // the final result object.
+	
+		if(window.chrome){  // checking if chrome
+	
+			var reqFields = [   'googLocalAddress',
+													'googLocalCandidateType',   
+													'googRemoteAddress',
+													'googRemoteCandidateType'
+											];
+			return new Promise(function(resolve, reject){
+				peerConnection.getStats(function(stats){
+					console.log(stats.result());
+					var filtered = stats.result().filter(function(e){return e.id.indexOf('Conn-audio')==0 && e.stat('googActiveConnection')=='true'})[0];
+					if(!filtered) return reject('Something is wrong...');
+					reqFields.forEach(function(e){connectionDetails[e.replace('goog', '')] = filtered.stat(e)});
+					resolve(connectionDetails);
+				});
+			});
+	
+		}else{  // assuming it is firefox
+			return peerConnection.getStats(null).then(function(stats){
+					var selectedCandidatePair = stats[Object.keys(stats).filter(function(key){return stats[key].selected})[0]]
+						, localICE = stats[selectedCandidatePair.localCandidateId]
+						, remoteICE = stats[selectedCandidatePair.remoteCandidateId];
+					connectionDetails.LocalAddress = [localICE.ipAddress, localICE.portNumber].join(':');
+					connectionDetails.RemoteAddress = [remoteICE.ipAddress, remoteICE.portNumber].join(':');
+					connectionDetails.LocalCandidateType = localICE.candidateType;
+					connectionDetails.RemoteCandidateType = remoteICE.candidateType;
+					return connectionDetails;
+			});
+	
+		}
 	}
 	// Handle errors attempting to create a description;
 	// this can happen both when creating an offer and when
@@ -151,6 +179,7 @@
 	// in this example.
 	
 	function handleSendChannelStatusChange(event) {
+		console.log('boop');
 	  if (sendChannel) {
 		var state = sendChannel.readyState;
 	  
