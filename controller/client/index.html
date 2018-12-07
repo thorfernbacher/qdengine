@@ -8,23 +8,21 @@
 	<script src="main.js"></script>
 </head>
 <body>
-	<button id="connectButton" name="connectButton" class="buttonleft">
-				Connect
-	</button>
+	
+	<div class="messagebox">
+		<label for="message">Enter a message:
+			<input type="text" name="message" id="message" placeholder="0000"
+					inputmode="latin" size=4 maxlength=4>
+		</label>
+		<button id="connectButton" name="connectButton" class="buttonleft">
+			Connect
+		</button>
+
+
+	</div>
 	<button id="disconnectButton" name="disconnectButton" class="buttonright" disabled>
 		Disconnect
 	</button>
-
-	<div class="messagebox">
-		<label for="message">Enter a message:
-			<input type="text" name="message" id="message" placeholder="Message text"
-					inputmode="latin" size=60 maxlength=120 disabled>
-		</label>
-		<button id="sendButton" name="sendButton" class="buttonright" disabled>
-			Send
-		</button>
-	</div>
-	
 	<div class="messagebox" id="receivebox">
 		<p>Messages received:</p>
 	</div>

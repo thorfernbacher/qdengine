@@ -13,11 +13,10 @@ host.on('connection', function (ws) {
 	let id;
 	ws.on('message', function (message) {
 		message = JSON.parse(message);
-		console.log(message);
 		if(message.type == 'answer') {
 			console.log('sent');
 			hosts[ws.id].client.send(JSON.stringify(message));
-		}
+		} 
 	});
 	for(let i = 0; i < 100; i++) {
 		id = Math.floor(46656 + (Math.random() * 1632959)).toString(36);
@@ -41,7 +40,9 @@ client.on('connection', function (ws, req) {
 		message = JSON.parse(message);
 		if(message.type == 'offer') {
 			hosts[ws.id].host.send(JSON.stringify(message));
-		} 
+		} else if(message.candidate) {
+			hosts[ws.id].host.send(JSON.stringify(message));
+		}
 	});
 	
 	let id = url.parse(req.url, true).query.id;
