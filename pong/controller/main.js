@@ -38,7 +38,7 @@ controller = {
 	
 };
 
-
+// Define "global" variables
 let ws,
 id,
 connectButton,
@@ -47,7 +47,8 @@ sendButton,
 messageInputBox,
 receiveBox,
 localConnection, 
-dataChannel;
+dataChannel, // RTCDataChannel for the local (sender)
+receiveChannel; // RTCDataChannel for the remote (receiver)
 
 // Set things up, connect event listeners, etc.
 

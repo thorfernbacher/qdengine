@@ -93,14 +93,11 @@ Time = {
 	}
 }
 function handleMessage({data}) {
+	({ts, td} = data);
 	var el = document.createElement("p");
 	var d = new Date();
 	var txtNode = document.createTextNode(event.data - d.getTime());
-	for(let p in data) {
-		if(messageHanders[p]) {
-			messageHanders[p]();
-		}
-	}
+	
 	el.appendChild(txtNode);
 	receiveBox.appendChild(el);
 }
