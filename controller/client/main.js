@@ -6,7 +6,7 @@ controller = {
 		dataChannel = localConnection.createDataChannel("sendChannel");
 		dataChannel.onopen = handleStatusChange;
 		dataChannel.onclose = handleStatusChange;
-		dataChannel.onmessage = handleReceiveMessage;
+		dataChannel.onmessage = handleMessage;
 		
 		localConnection.onicecandidate = ({candidate}) => {
 			if(candidate){
@@ -49,7 +49,6 @@ receiveBox,
 localConnection, 
 dataChannel;
 
-// Set things up, connect event listeners, etc.
 
 function startup() {
 	connectButton = document.getElementById('connectButton');
@@ -72,7 +71,7 @@ function handleStatusChange() {
 			disconnectButton.disabled = false;
 			connectButton.disabled = true;
 			document.addEventListener("click", (e) =>  {
-				dataChannel.send({ts:new Date().getTime()});
+				dataChannel.send(JSON.stringify({cd:new Date().getTime()+timeD}));
 			});
 		} else {
 			console.log("Disconnect");
@@ -81,14 +80,30 @@ function handleStatusChange() {
 		}
 	}
 }
-
-function handleReceiveMessage(event) {
-	console.log('Got message');
-	var el = document.createElement("p");
-	var txtNode = document.createTextNode(event.data);
+let timeD, t1, t2;
+messageHanders = {
+	ts(q) {
+		t1 = new Date().getTime() - q;
+		dataChannel.send(JSON.stringify({ts:new Date().getTime()}));
+	},
+	td(q) {
+		t2 = q;
+		timeD = (t2 - t1)/2;
+		console.log('Time Difference: ' + timeD);
+		var el = document.createElement("p");
+		var txtNode = document.createTextNode(timeD);
+		el.appendChild(txtNode);
+		receiveBox.appendChild(el);
+	}
+};
+function handleMessage({data}) {
+	data = JSON.parse(data);
 	
-	el.appendChild(txtNode);
-	receiveBox.appendChild(el);
+	for(let p in data) {
+		if(messageHanders[p]) {
+			messageHanders[p](data[p]);
+		}
+	}
 }
 
 

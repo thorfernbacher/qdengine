@@ -6,8 +6,7 @@ sendButton,
 messageInputBox,
 receiveBox,
 localConnection, 
-dataChannel,
-receiveChannel; 
+dataChannel;
 
 
 
@@ -56,17 +55,6 @@ function sendAnswer(m) {
 	});
 }
 
-function sendMessage() {
-	var message = messageInputBox.value;
-	console.log('Sending Message: ', message);
-	sendChannel.send(message);
-	
-	// Clear the input box and re-focus it, so that we're
-	// ready for the next message.
-	
-	messageInputBox.value = "";
-	messageInputBox.focus();
-}
 
 function dataChannelCallback(event) {
 	dataChannel = event.channel;
@@ -78,46 +66,43 @@ function Controller() {
 	
 }
 messageHanders = {
-	ts(d) {
-		t2 = d - new Date().getTime();
-			
+	ts(q) {
+		let t2 = new Date().getTime() - q;
+		console.log(t2);
+		dataChannel.send(JSON.stringify({td:t2}));
 	},
-	td(d) {
-
+	cd(q) {
+		var el = document.createElement("p");
+		var txtNode = document.createTextNode(q - new Date().getTime());
+		el.appendChild(txtNode);
+		receiveBox.appendChild(el);
 	}
 };
-Time = {
-	difference: 0,
-	sync() {
-		
-	}
-}
 function handleMessage({data}) {
-	var el = document.createElement("p");
+	data = JSON.parse(data);
+	
 	var d = new Date();
-	var txtNode = document.createTextNode(event.data - d.getTime());
+	
 	for(let p in data) {
 		if(messageHanders[p]) {
-			messageHanders[p]();
+			messageHanders[p](data[p]);
 		}
 	}
-	el.appendChild(txtNode);
-	receiveBox.appendChild(el);
+	
 }
 
 // Handle status changes on the receiver's channel.
 
 function handleStatusChange(event) {
-	if (receiveChannel) {
-		
-		let state = receiveChannel.readyState;
+	if (dataChannel) {
+		let state = dataChannel.readyState;
 		if (state === "open") {
 			console.log('Connected');
-			//localConnection.send();
+			let o = JSON.stringify({ts: new Date().getTime()});
+			dataChannel.send(o);
 		} else {
 			console.log("Disconnect");
 		}
-		
 	}
 }
 
