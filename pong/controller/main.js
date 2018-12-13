@@ -1,16 +1,25 @@
 controller = {
 	connect(id) {
+		if (document.documentElement.requestFullscreen) {
+			document.documentElement.requestFullscreen();
+		  } else if (document.documentElement.mozRequestFullScreen) { /* Firefox */
+			document.documentElement.mozRequestFullScreen();
+		  } else if (document.documentElement.webkitRequestFullscreen) { /* Chrome, Safari and Opera */
+			document.documentElement.webkitRequestFullscreen();
+		  } else if (document.documentElement.msRequestFullscreen) { /* IE/Edge */
+			document.documentElement.msRequestFullscreen();
+		  }
 		id = messageInputBox.value;
 		if(!id) id = '0000';
 		localConnection = new RTCPeerConnection();
 		dataChannel = localConnection.createDataChannel("sendChannel");
 		dataChannel.onopen = handleStatusChange;
 		dataChannel.onclose = handleStatusChange;
-		dataChannel.onmessage = handleReceiveMessage;
+		dataChannel.onmessage = handleMessage;
 		
 		localConnection.onicecandidate = ({candidate}) => {
 			if(candidate){
-				console.log('sent candidate');
+				console.log(candidate);
 				ws.send(JSON.stringify(candidate));
 			}
 		};
@@ -30,67 +39,102 @@ controller = {
 		ws.onmessage = function (ev) {
 			let message = JSON.parse(ev.data);
 			if (message.type == 'answer') {
-				console.log('Received Answer: ', message);
+				statusElem.innerHTML = 'Received Answer';
 				localConnection.setRemoteDescription(message);
+			} else if(message.candidate) {
+				statusElem.innerHTML = 'Adding ICE Candidate';
+				localConnection.addIceCandidate(message)
+				.catch(e => {
+					console.error('ICE Candidate Error' + e.name);
+				});
 			}
-		}
-	}
-	
+		} 
+	}	
 };
 
-// Define "global" variables
+
 let ws,
 id,
 connectButton,
-disconnectButton,
 sendButton,
 messageInputBox,
 receiveBox,
 localConnection, 
-dataChannel, // RTCDataChannel for the local (sender)
-receiveChannel; // RTCDataChannel for the remote (receiver)
+dataChannel,
+statusElem;
 
-// Set things up, connect event listeners, etc.
 
-function startup() {
-	connectButton = document.getElementById('connectButton');
-	disconnectButton = document.getElementById('disconnectButton');
-	messageInputBox = document.getElementById('message');
-	receiveBox = document.getElementById('receivebox');
-	
-	// Set event listeners for user interface widgets
-	
-	connectButton.addEventListener('click', controller.connect, false);
-}
+
 
 function handleStatusChange() {
 	if (dataChannel) {
 		var state = dataChannel.readyState;
 		if (state === "open") {
-			console.log("Connected");
+			statusElem.innerHTML = 'Data Channel Open';
 			messageInputBox.disabled = true;
 			messageInputBox.focus();
-			disconnectButton.disabled = false;
 			connectButton.disabled = true;
-			document.addEventListener("click", (e) =>  {
-				dataChannel.send({ts:new Date().getTime()});
-			});
 		} else {
-			console.log("Disconnect");
+			statusElem.innerHTML = 'Data Channel Closed';
 			connectButton.disabled = false;
 			disconnectButton.disabled = true;
 		}
 	}
 }
-
-function handleReceiveMessage(event) {
-	console.log('Got message');
-	var el = document.createElement("p");
-	var txtNode = document.createTextNode(event.data);
+let timeD, t1, t2;
+messageHanders = {
+	ts(q) {
+		t1 = new Date().getTime() - q;
+		dataChannel.send(JSON.stringify({ts:new Date().getTime()}));
+	},
+	td(q) {
+		t2 = q;
+		timeD = (t2 - t1)/2;
+		console.log('Time Difference: ' + timeD);
+		var el = document.createElement("p");
+		var txtNode = document.createTextNode('Time Difference ' + timeD);
+		el.appendChild(txtNode);
+		receiveBox.appendChild(el);
+	}
+};
+function handleMessage({data}) {
+	data = JSON.parse(data);
 	
-	el.appendChild(txtNode);
-	receiveBox.appendChild(el);
+	for(let p in data) {
+		if(messageHanders[p]) {
+			messageHanders[p](data[p]);
+		}
+	}
 }
+let position = 0;
+window.addEventListener('deviceorientation', e => {
+	let a = e.alpha/360;
+	statusElem.innerHTML = a;
+});
 
-
+let distance = 0;
+window.addEventListener('touchmove', e => {
+	let t = e.touches[0];
+	distance = (t.clientY / window.innerHeight) - origin;
+	origin = t.clientY / window.innerHeight;
+	dataChannel.send(JSON.stringify({i:distance}));
+}, false);
+window.addEventListener('touchstart', e => {
+	let t = e.touches[0];
+	origin = t.clientY / window.innerHeight;
+}, false);
 window.addEventListener('load', startup, false);
+function startup() {
+	connectButton = document.getElementById('connectButton');
+	messageInputBox = document.getElementById('message');
+	receiveBox = document.getElementById('receivebox');
+	statusElem = document.getElementById('status');
+	// Set event listeners for user interface widgets
+	
+	connectButton.addEventListener('click', controller.connect, false);
+	
+}
+function sendMove() {
+	dataChannel.send(JSON.stringify({i:distance}));
+	setTimeout(sendMove, 20);
+}

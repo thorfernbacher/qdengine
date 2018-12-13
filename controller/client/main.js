@@ -10,7 +10,7 @@ controller = {
 		
 		localConnection.onicecandidate = ({candidate}) => {
 			if(candidate){
-				console.log('sent candidate');
+				console.log(candidate);
 				ws.send(JSON.stringify(candidate));
 			}
 		};
@@ -30,32 +30,36 @@ controller = {
 		ws.onmessage = function (ev) {
 			let message = JSON.parse(ev.data);
 			if (message.type == 'answer') {
-				console.log('Received Answer: ', message);
+				statusElem.innerHTML = 'Received Answer';
 				localConnection.setRemoteDescription(message);
+			} else if(message.candidate) {
+				statusElem.innerHTML = 'Adding ICE Candidate';
+				localConnection.addIceCandidate(message)
+				.catch(e => {
+					console.error('ICE Candidate Error' + e.name);
+				});
 			}
-		}
-	}
-	
+		} 
+	}	
 };
 
 
 let ws,
 id,
 connectButton,
-disconnectButton,
 sendButton,
 messageInputBox,
 receiveBox,
 localConnection, 
-dataChannel;
+dataChannel,
+statusElem;
 
 
 function startup() {
 	connectButton = document.getElementById('connectButton');
-	disconnectButton = document.getElementById('disconnectButton');
 	messageInputBox = document.getElementById('message');
 	receiveBox = document.getElementById('receivebox');
-	
+	statusElem = document.getElementById('status');
 	// Set event listeners for user interface widgets
 	
 	connectButton.addEventListener('click', controller.connect, false);
@@ -65,16 +69,15 @@ function handleStatusChange() {
 	if (dataChannel) {
 		var state = dataChannel.readyState;
 		if (state === "open") {
-			console.log("Connected");
+			statusElem.innerHTML = 'Data Channel Open';
 			messageInputBox.disabled = true;
 			messageInputBox.focus();
-			disconnectButton.disabled = false;
 			connectButton.disabled = true;
 			document.addEventListener("click", (e) =>  {
 				dataChannel.send(JSON.stringify({cd:new Date().getTime()+timeD}));
 			});
 		} else {
-			console.log("Disconnect");
+			statusElem.innerHTML = 'Data Channel Closed';
 			connectButton.disabled = false;
 			disconnectButton.disabled = true;
 		}
@@ -91,7 +94,7 @@ messageHanders = {
 		timeD = (t2 - t1)/2;
 		console.log('Time Difference: ' + timeD);
 		var el = document.createElement("p");
-		var txtNode = document.createTextNode(timeD);
+		var txtNode = document.createTextNode('Time Difference ' + timeD);
 		el.appendChild(txtNode);
 		receiveBox.appendChild(el);
 	}

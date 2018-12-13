@@ -8,15 +8,17 @@ host = new WebSocketServer({noServer: true}),
 client = new WebSocketServer({noServer: true});
 
 let hosts = {};
-
 host.on('connection', function (ws) {
 	let id;
 	ws.on('message', function (message) {
 		message = JSON.parse(message);
 		if(message.type == 'answer') {
-			console.log('sent');
+			console.log('H -> C Answer');
 			hosts[ws.id].client.send(JSON.stringify(message));
-		} 
+		} else if(message.candidate) {
+			console.log('H -> C Candidate');
+			hosts[ws.id].client.send(JSON.stringify(message));
+		}
 	});
 	for(let i = 0; i < 100; i++) {
 		id = Math.floor(46656 + (Math.random() * 1632959)).toString(36);
@@ -34,13 +36,14 @@ host.on('connection', function (ws) {
 	ws.send(JSON.stringify({type: 'id', id}));
 	console.log('Host WebSocket Connected');
 });
-
 client.on('connection', function (ws, req) {
 	ws.on('message', function (message) {
 		message = JSON.parse(message);
 		if(message.type == 'offer') {
+			console.log('H <- C Offer');
 			hosts[ws.id].host.send(JSON.stringify(message));
 		} else if(message.candidate) {
+			console.log('H <- C Candidate');
 			hosts[ws.id].host.send(JSON.stringify(message));
 		}
 	});

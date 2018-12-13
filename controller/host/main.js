@@ -6,27 +6,37 @@ sendButton,
 messageInputBox,
 receiveBox,
 localConnection, 
-dataChannel;
+dataChannel,
+statusElem;
 
 
 
 function connectPeers() {
 	receiveBox = document.getElementById('receivebox');
+	statusElem = document.getElementById('status');
 	// Create the local connection and its event listeners
 	
 	localConnection = new RTCPeerConnection();
 	localConnection.ondatachannel =  dataChannelCallback; 
 	
-	localConnection.onicecandidate = ({candidate}) => {};
+	localConnection.onicecandidate = ({candidate}) => {
+		if(candidate){
+			statusElem
+			ws.send(JSON.stringify(candidate));
+		}
+		
+	};
+	localConnection.onerror = e => {
+		console.log(e);
+	}
 	startWS();
 	
 }
 function startWS(desc) {
-	ws = new WebSocket('ws://localhost/host');
+	ws = new WebSocket(`ws://${window.location.hostname}/host`);
 	// event emmited when connected
 	ws.onopen = function () {
-		console.log('WebSocket connected');
-		
+		statusElem.innerHTML = 'WebSocket Connected';
 	}
 	// event emmited when receiving message 
 	ws.onmessage = function ({data}) {
@@ -34,14 +44,17 @@ function startWS(desc) {
 		if(message.type === 'id') {
 			id = message.id;
 			document.getElementById('idbox').append(id);
+			statusElem.innerHTML = 'Waiting for Offer';
 		} else if(message.type === 'offer') {
-			let s = message.sdp.split('\n')[1].slice(4);
-			s = s.slice(0, s.indexOf(' '));
-			console.log(s);
+			statusElem.innerHTML = 'Sending Answer';
 			sendAnswer(message);
 		} else if(message.candidate) {
-			console.log('Adding ICE Candidate');
-			localConnection.addIceCandidate(message);
+			console.log(message.candidate);
+			statusElem.innerHTML = 'Added Candidate';
+			localConnection.addIceCandidate(message)
+			.catch(e => {
+				console.error('ICE Candidate Error' + e.name);
+			});
 		}
 	}
 }
@@ -57,6 +70,7 @@ function sendAnswer(m) {
 
 
 function dataChannelCallback(event) {
+	console.log('Data Channel Added');
 	dataChannel = event.channel;
 	dataChannel.onmessage = handleMessage;
 	dataChannel.onopen = handleStatusChange;
@@ -73,36 +87,30 @@ messageHanders = {
 	},
 	cd(q) {
 		var el = document.createElement("p");
-		var txtNode = document.createTextNode(q - new Date().getTime());
+		var txtNode = document.createTextNode(new Date().getTime() - q);
 		el.appendChild(txtNode);
 		receiveBox.appendChild(el);
 	}
 };
 function handleMessage({data}) {
 	data = JSON.parse(data);
-	
 	var d = new Date();
-	
 	for(let p in data) {
 		if(messageHanders[p]) {
 			messageHanders[p](data[p]);
 		}
 	}
-	
 }
-
-// Handle status changes on the receiver's channel.
 
 function handleStatusChange(event) {
 	if (dataChannel) {
 		let state = dataChannel.readyState;
+		statusElem.innerHTML = 'Data Channel State: ' + state;
+		console.log('Data Channel State: ' + state)
 		if (state === "open") {
-			console.log('Connected');
 			let o = JSON.stringify({ts: new Date().getTime()});
 			dataChannel.send(o);
-		} else {
-			console.log("Disconnect");
-		}
+		} 
 	}
 }
 
