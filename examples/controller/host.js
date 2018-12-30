@@ -36,7 +36,7 @@ const ControllerHost = {
 		console.log('CH ID Assigned: ' + id);
 	},
 	onconnectMin() {
-		console.log(controllers.count '')
+		console.log(controllers.count, '')
 	},
 	controllers: {
 		list: [],

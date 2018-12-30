@@ -1,7 +1,19 @@
 let Input = {
+	keys:{
 
-};
+	},
+	setDefaut(k) {
+		for(key in k) {
+			if(Input.keys[key]) {
 
-window.addEventListener('beforeinput', (e) => {
-	logMessage(`beforeinput event. you are about inputing "${e.data}"`);
-  });
+			}
+		}
+	}
+}
+window.addEventListener('keydown', (e) => {
+	if (!e.repeat) {
+
+	} else {
+		console.log(`keydown event repeats. key property value is "${e.key}"`);
+	}
+});
