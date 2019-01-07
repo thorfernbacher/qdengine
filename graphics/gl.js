@@ -1,3 +1,5 @@
+import dF from './default.frag';
+import dV from './default.vert';
 export let gl = {
 	init(s) {
 		let canvas = s;
@@ -5,8 +7,10 @@ export let gl = {
 		gl.resize();
 		gl.clearColor(0,0,0,0);
 		gl.clear(gl.COLOR_BUFFER_BIT);
-		gl.positionBuffer = gl.createBuffer();
-		gl.texcoordBuffer = gl.createBuffer();
+		gl.buffers.positions = gl.createBuffer();
+		gl.buffers.colors = gl.createBuffer();
+		
+		gl.default = gl.buildProgram(dV, dF);
 	},
 	resize() {
 		//make the canvas size the same size it is in pixels
@@ -44,6 +48,9 @@ export let gl = {
 	   
 		console.log(gl.getProgramInfoLog(program));
 		gl.deleteProgram(program);
+		
 	},
-	vertexBuffer:[]
+	vertexBuffer:[],
+	colorBuffer:[],
+	buffers:{}
 };
