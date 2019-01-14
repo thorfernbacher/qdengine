@@ -11,6 +11,21 @@ export let gl = {
 		gl.buffers.colors = gl.createBuffer();
 		
 		gl.default = gl.buildProgram(dV, dF);
+
+		gl.useProgram(gl.default);
+
+		var positionAttributeLocation = gl.getAttribLocation(gl.default, "a_position");
+		gl.bindBuffer(gl.ARRAY_BUFFER, gl.buffers.positions);
+		gl.enableVertexAttribArray(positionAttributeLocation);
+		
+		// Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
+		var size = 2;          // 2 components per iteration
+		var type = gl.FLOAT;   // the data is 32bit floats
+		var normalize = false; // don't normalize the data
+		var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+		var offset = 0;        // start at the beginning of the buffer
+		gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset);
+
 	},
 	resize() {
 		//make the canvas size the same size it is in pixels
